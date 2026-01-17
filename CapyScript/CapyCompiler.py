@@ -24,10 +24,6 @@ def resolve_variables(text: str, registers: dict, undefined_fmt: str = "<undefin
 
 
 def set_register_from_arg(arg: str):
-    """
-    Parse an argument string of form "<name> <value...>" and set Registers[name] = resolved(value).
-    If no value is provided, set to empty string.
-    """
     parts = arg.split(" ", 1)
     name = parts[0] if parts else ""
     value = parts[1] if len(parts) > 1 else ""
@@ -39,7 +35,6 @@ def set_register_from_arg(arg: str):
 class io:
     @staticmethod
     def write(text: str):
-        # Expand variables and print (preserve trailing newline behavior like print)
         processed = resolve_variables(text, Registers)
         print(processed)
 
