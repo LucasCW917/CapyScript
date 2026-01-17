@@ -1,6 +1,8 @@
 from pathlib import Path
 import re
 
+import customtkinter
+
 CCVersion = "1.0.0"
 
 Registers = {}
@@ -68,7 +70,7 @@ CommandMap = {
     "io.clear": io.clear,
     "io.read": io.read,
     "io.input": io.read,
-    "io.local": io.local,
+    "io.local": io.local
 }
 
 
