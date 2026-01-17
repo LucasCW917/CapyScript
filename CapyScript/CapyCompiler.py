@@ -1,25 +1,36 @@
 from pathlib import Path
+import re
 
 CCVersion = "1.0.0"
 
 Registers = {}
 
+# Variable resolution (modular)
+_VAR_PATTERN = re.compile(r'\$(\w+)|\$\{([^}]+)\}')
+
+def resolve_variables(text: str, registers: dict, undefined_fmt: str = "<undefined:{name}>") -> str:
+    """
+    Replace $name or ${name} occurrences in `text` using values from `registers`.
+    Returns the resulting string; undefined registers use `undefined_fmt`.
+    """
+    if not text:
+        return text
+
+    def _repl(match):
+        name = match.group(1) or match.group(2)
+        if name in registers:
+            return str(registers[name])
+        return undefined_fmt.format(name=name)
+
+    return _VAR_PATTERN.sub(_repl, text)
+
+
 # Console Manipulation
 class io:
     @staticmethod
     def write(text):
-        ProcessedText = text.split(" ")
-
-        for word in ProcessedText:
-            if word.startswith("$"):
-                reg_name = word[1:]
-                if reg_name in Registers:
-                    print(Registers[reg_name], end=" ")
-                else:
-                    print(f"<undefined:{reg_name}>", end=" ")
-
-            else:
-                 print(word, end=" ")
+        processed = resolve_variables(text, Registers)
+        print(processed, end="")
 
     @staticmethod
     def clear():
@@ -27,7 +38,9 @@ class io:
 
     @staticmethod
     def read(Register, *prompt):
-        Registers[Register] = input(" ".join(prompt))
+        processed = resolve_variables(" ".join(prompt), Registers)
+        value = input(processed)
+        Registers[Register] = value
     
 
 # Command Mappings
