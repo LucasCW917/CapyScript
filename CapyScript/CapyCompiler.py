@@ -75,6 +75,8 @@ class CapyCompiler:
         pass
 
     def compile(self, source_file):
+        if source_file.split(".")[-1] != "capy":
+            raise Exception("Invalid file type: " + "." + source_file.split(".")[-1])
         content = Path(source_file).read_text()
         for line in content.splitlines():
             line = line.strip()
@@ -89,8 +91,5 @@ class CapyCompiler:
                 CommandMap[command](argument)
             else:
                 raise Exception("Unknown command: " + command)
-
-    else:
-        raise Exception("Unsupported CapyCompiler version: " + self.version + ". Current version is %s." % CCVersion)
 
 CapyCompiler().compile("script.capy")

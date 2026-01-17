@@ -1,3 +1,5 @@
 io.write Hello world!
 io.local Little Hello world!
 io.write ${Little} Bye bye world!
+io.read Little hello
+io.write ${Little}
