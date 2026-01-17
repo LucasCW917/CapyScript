@@ -1,8 +1,6 @@
 from pathlib import Path
 import re
 
-import customtkinter
-
 CCVersion = "1.0.0"
 
 Registers = {}
