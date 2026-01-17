@@ -2,21 +2,41 @@ from pathlib import Path
 
 CCVersion = "1.0.0"
 
+Registers = {}
+
 # Console Manipulation
-class Console:
+class io:
     @staticmethod
     def write(text):
-        print(text)
+        ProcessedText = text.split(" ")
+
+        for word in ProcessedText:
+            if word.startswith("$"):
+                reg_name = word[1:]
+                if reg_name in Registers:
+                    print(Registers[reg_name], end=" ")
+                else:
+                    print(f"<undefined:{reg_name}>", end=" ")
+
+            else:
+                 print(word, end=" ")
 
     @staticmethod
     def clear():
         print("\033c", end="")
 
+    @staticmethod
+    def read(Register, *prompt):
+        Registers[Register] = input(" ".join(prompt))
+    
+
 # Command Mappings
 CommandMap = {
     # Console Manipulation
-    "console.write": Console.write,
-    "console.clear": Console.clear
+    "io.write": io.write,
+    "io.clear": io.clear,
+    "io.read": io.read,
+    "io.input": io.read
 }
 
 
