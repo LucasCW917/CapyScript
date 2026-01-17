@@ -1,8 +1,6 @@
 from pathlib import Path
 import re
 
-CCVersion = "1.0.0"
-
 Registers = {}
 
 # Variable resolution (modular)
@@ -73,29 +71,26 @@ CommandMap = {
 
 
 class CapyCompiler:
-    def __init__(self, version):
-        self.version = version
+    def __init__(self):
+        pass
 
     def compile(self, source_file):
-        if self.version == "1.0.0":
-            CCVersion = self.version
+        content = Path(source_file).read_text()
+        for line in content.splitlines():
+            line = line.strip()
+            if not line or line.startswith("#"):
+                continue
 
-            content = Path(source_file).read_text()
-            for line in content.splitlines():
-                line = line.strip()
-                if not line or line.startswith("#"):
-                    continue
+            parts = line.split(" ", 1)
+            command = parts[0]
+            argument = parts[1] if len(parts) > 1 else ""
 
-                parts = line.split(" ", 1)
-                command = parts[0]
-                argument = parts[1] if len(parts) > 1 else ""
+            if command in CommandMap:
+                CommandMap[command](argument)
+            else:
+                raise Exception("Unknown command: " + command)
 
-                if command in CommandMap:
-                    CommandMap[command](argument)
-                else:
-                    raise Exception("Unknown command: " + command)
+    else:
+        raise Exception("Unsupported CapyCompiler version: " + self.version + ". Current version is %s." % CCVersion)
 
-        else:
-            raise Exception("Unsupported CapyCompiler version: " + self.version + ". Current version is %s." % CCVersion)
-
-CapyCompiler(CCVersion).compile("script.capy")
+CapyCompiler().compile("script.capy")
