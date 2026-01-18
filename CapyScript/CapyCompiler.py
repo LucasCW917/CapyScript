@@ -36,7 +36,6 @@ def set_register_from_arg(arg: str):
 class io:
     @staticmethod
     def write(text: str):
-        # Expand variables and print (preserve trailing newline behavior like print)
         processed = resolve_variables(text, Registers)
         print(processed)
 
