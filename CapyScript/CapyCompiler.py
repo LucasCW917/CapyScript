@@ -9,7 +9,7 @@ import tkinter as tk
 
 Registers = {}
 ver = "1.0.1"
-mode = "debug"
+mode = "release"
 
 # Variable resolution (modular)
 _VAR_PATTERN = re.compile(r'\$(\w+)|\$\{([^}]+)\}')
@@ -197,6 +197,8 @@ class time:
 # - Exposes widget helpers: get, set, insert, delete, select, deselect, scroll_to,
 #   add (child or segmented value), bind, focus, lift, lower, update.
 # - Provides global CTk helpers: set_appearance, set_theme
+#
+# Layout note: widget creation does NOT perform any layout. Use capygui.pack/grid/place explicitly.
 class capygui:
     apps = {}
     elements = {}
@@ -254,6 +256,29 @@ class capygui:
             v = tk.StringVar()
         capygui.vars[var_name] = v
         return v
+
+    @staticmethod
+    def _resolve_variable(name, parent, kind="string"):
+        if not isinstance(name, str):
+            return name  # already a tk.Variable
+
+        if name in capygui.vars:
+            return capygui.vars[name]
+
+        if kind == "int":
+            var = tk.IntVar(master=parent)
+        else:
+            var = tk.StringVar(master=parent)
+
+        if name in Registers:
+            try:
+                var.set(Registers[name])
+            except Exception:
+                pass
+
+        capygui.vars[name] = var
+        return var
+
 
     # --- Global CTk settings ---
     @staticmethod
@@ -330,7 +355,7 @@ class capygui:
         if parent:
             parent.mainloop()
 
-    # --- Elements creation ---
+    # --- Elements creation (do NOT layout here) ---
     @staticmethod
     def TopLevel(args):
         tokens = args.split(" ")
@@ -375,28 +400,23 @@ class capygui:
         parent = capygui._get_parent(parent_name)
         config = kw.copy()
         frame = ctk.CTkFrame(parent, **config) if config else ctk.CTkFrame(parent)
-        if geo:
-            try:
-                w, h = geo.split("x")
-                frame.place(x=0, y=0, width=int(w), height=int(h))
-            except Exception:
-                pass
+        # DO NOT place the frame here; layout must be explicit via capygui.place/pack/grid
         capygui.elements[name] = frame
 
     @staticmethod
     def Label(args):
-        tokens = args.split(" ")
+        tokens = args.split()
         pos, kw = capygui._parse_kwargs(tokens)
-        if len(pos) >= 3:
-            parent_name, name, text = pos[0], pos[1], " ".join(pos[2:])
-            kw.setdefault("text", text)
-        else:
-            parent_name = kw.pop("parent", None)
-            name = kw.pop("name", None)
+
+        parent_name, name = pos[0], pos[1]
         parent = capygui._get_parent(parent_name)
-        label = ctk.CTkLabel(parent, **kw) if kw else ctk.CTkLabel(parent)
-        label.pack()
+
+        if len(pos) > 2:
+            kw.setdefault("text", " ".join(pos[2:]))
+
+        label = ctk.CTkLabel(parent, **kw)
         capygui.elements[name] = label
+
 
     @staticmethod
     def Button(args):
@@ -428,7 +448,7 @@ class capygui:
         if isinstance(command, str):
             kw["command"] = _make_command(command)
         btn = ctk.CTkButton(parent, **kw) if kw else ctk.CTkButton(parent)
-        btn.pack()
+        # do NOT layout here
         capygui.elements[name] = btn
 
     @staticmethod
@@ -445,7 +465,6 @@ class capygui:
             kw["variable"] = capygui._ensure_variable(kw["variable"], var_type="int")
         parent = capygui._get_parent(parent_name)
         checkbox = ctk.CTkCheckBox(parent, **kw) if kw else ctk.CTkCheckBox(parent)
-        checkbox.pack()
         capygui.elements[name] = checkbox
 
     @staticmethod
@@ -462,7 +481,6 @@ class capygui:
             kw["variable"] = capygui._ensure_variable(kw["variable"], var_type="string")
         parent = capygui._get_parent(parent_name)
         radiobutton = ctk.CTkRadioButton(parent, **kw) if kw else ctk.CTkRadioButton(parent)
-        radiobutton.pack()
         capygui.elements[name] = radiobutton
 
     @staticmethod
@@ -480,7 +498,6 @@ class capygui:
             kw["variable"] = capygui._ensure_variable(kw["variable"], var_type="string")
         parent = capygui._get_parent(parent_name)
         segmented_button = ctk.CTkSegmentedButton(parent, **kw) if kw else ctk.CTkSegmentedButton(parent)
-        segmented_button.pack()
         capygui.elements[name] = segmented_button
 
     @staticmethod
@@ -496,7 +513,6 @@ class capygui:
             kw["textvariable"] = capygui._ensure_variable(kw["textvariable"], var_type="string")
         parent = capygui._get_parent(parent_name)
         entry = ctk.CTkEntry(parent, **kw) if kw else ctk.CTkEntry(parent)
-        entry.pack()
         capygui.elements[name] = entry
 
     @staticmethod
@@ -510,7 +526,6 @@ class capygui:
             name = kw.pop("name", None)
         parent = capygui._get_parent(parent_name)
         textbox = ctk.CTkTextbox(parent, **kw) if kw else ctk.CTkTextbox(parent)
-        textbox.pack()
         capygui.elements[name] = textbox
 
     @staticmethod
@@ -528,7 +543,6 @@ class capygui:
             kw["variable"] = capygui._ensure_variable(kw["variable"], var_type="int")
         parent = capygui._get_parent(parent_name)
         slider = ctk.CTkSlider(parent, **kw) if kw else ctk.CTkSlider(parent)
-        slider.pack()
         capygui.elements[name] = slider
 
     @staticmethod
@@ -542,143 +556,29 @@ class capygui:
             name = kw.pop("name", None)
         parent = capygui._get_parent(parent_name)
         progressbar = ctk.CTkProgressBar(parent, **kw) if kw else ctk.CTkProgressBar(parent)
-        progressbar.pack()
         capygui.elements[name] = progressbar
 
     @staticmethod
     def OptionMenu(args):
-        tokens = args.split(" ")
+        tokens = args.split()
         pos, kw = capygui._parse_kwargs(tokens)
-        if len(pos) >= 3:
-            parent_name, name, options = pos[0], pos[1], pos[2].split(",")
-            kw.setdefault("values", options)
-        else:
-            parent_name = kw.pop("parent", None)
-            name = kw.pop("name", None)
+
+        parent_name, name = pos[0], pos[1]
         parent = capygui._get_parent(parent_name)
-        var = kw.get("variable")
-        if isinstance(var, str):
-            # try to find an existing Variable object in capygui (adjust names to your code)
-            existing = getattr(capygui, "variables", {}).get(var) or capygui.elements.get(var)
-            if isinstance(existing, tk.Variable):
-                kw["variable"] = existing
-            else:
-                # create a new StringVar attached to the widget parent
-                # initialize with any stored register value if you use Registers
-                initial = Registers.get(var, "")
-                sv = tk.StringVar(master=parent, value=initial)
-                # store for future lookups (optional)
-                getattr(capygui, "variables", {}).setdefault(var, sv)
-                kw["variable"] = sv
 
-        var = kw.get("variable")
-        if isinstance(var, str):
-            # try to find an existing Variable object in capygui (adjust names to your code)
-            existing = getattr(capygui, "variables", {}).get(var) or capygui.elements.get(var)
-            if isinstance(existing, tk.Variable):
-                kw["variable"] = existing
-            else:
-                # create a new StringVar attached to the widget parent
-                # initialize with any stored register value if you use Registers
-                initial = Registers.get(var, "")
-                sv = tk.StringVar(master=parent, value=initial)
-                # store for future lookups (optional)
-                getattr(capygui, "variables", {}).setdefault(var, sv)
-                kw["variable"] = sv
+        if len(pos) > 2:
+            kw.setdefault("values", pos[2].split(","))
 
-        var = kw.get("variable")
-        if isinstance(var, str):
-            # try to find an existing Variable object in capygui (adjust names to your code)
-            existing = getattr(capygui, "variables", {}).get(var) or capygui.elements.get(var)
-            if isinstance(existing, tk.Variable):
-                kw["variable"] = existing
-            else:
-                # create a new StringVar attached to the widget parent
-                # initialize with any stored register value if you use Registers
-                initial = Registers.get(var, "")
-                sv = tk.StringVar(master=parent, value=initial)
-                # store for future lookups (optional)
-                getattr(capygui, "variables", {}).setdefault(var, sv)
-                kw["variable"] = sv
+        if "values" in kw and isinstance(kw["values"], str):
+            kw["values"] = [v.strip() for v in kw["values"].split(",")]
 
-        var = kw.get("variable")
-        if isinstance(var, str):
-            # try to find an existing Variable object in capygui (adjust names to your code)
-            existing = getattr(capygui, "variables", {}).get(var) or capygui.elements.get(var)
-            if isinstance(existing, tk.Variable):
-                kw["variable"] = existing
-            else:
-                # create a new StringVar attached to the widget parent
-                # initialize with any stored register value if you use Registers
-                initial = Registers.get(var, "")
-                sv = tk.StringVar(master=parent, value=initial)
-                # store for future lookups (optional)
-                getattr(capygui, "variables", {}).setdefault(var, sv)
-                kw["variable"] = sv
+        if "variable" in kw:
+            kw["variable"] = capygui._resolve_variable(
+                kw["variable"], parent, "string"
+            )
 
-        var = kw.get("variable")
-        if isinstance(var, str):
-            # try to find an existing Variable object in capygui (adjust names to your code)
-            existing = getattr(capygui, "variables", {}).get(var) or capygui.elements.get(var)
-            if isinstance(existing, tk.Variable):
-                kw["variable"] = existing
-            else:
-                # create a new StringVar attached to the widget parent
-                # initialize with any stored register value if you use Registers
-                initial = Registers.get(var, "")
-                sv = tk.StringVar(master=parent, value=initial)
-                # store for future lookups (optional)
-                getattr(capygui, "variables", {}).setdefault(var, sv)
-                kw["variable"] = sv
-
-        var = kw.get("variable")
-        if isinstance(var, str):
-            # try to find an existing Variable object in capygui (adjust names to your code)
-            existing = getattr(capygui, "variables", {}).get(var) or capygui.elements.get(var)
-            if isinstance(existing, tk.Variable):
-                kw["variable"] = existing
-            else:
-                # create a new StringVar attached to the widget parent
-                # initialize with any stored register value if you use Registers
-                initial = Registers.get(var, "")
-                sv = tk.StringVar(master=parent, value=initial)
-                # store for future lookups (optional)
-                getattr(capygui, "variables", {}).setdefault(var, sv)
-                kw["variable"] = sv
-
-        var = kw.get("variable")
-        if isinstance(var, str):
-            # try to find an existing Variable object in capygui (adjust names to your code)
-            existing = getattr(capygui, "variables", {}).get(var) or capygui.elements.get(var)
-            if isinstance(existing, tk.Variable):
-                kw["variable"] = existing
-            else:
-                # create a new StringVar attached to the widget parent
-                # initialize with any stored register value if you use Registers
-                initial = Registers.get(var, "")
-                sv = tk.StringVar(master=parent, value=initial)
-                # store for future lookups (optional)
-                getattr(capygui, "variables", {}).setdefault(var, sv)
-                kw["variable"] = sv
-
-        var = kw.get("variable")
-        if isinstance(var, str):
-            # try to find an existing Variable object in capygui (adjust names to your code)
-            existing = getattr(capygui, "variables", {}).get(var) or capygui.elements.get(var)
-            if isinstance(existing, tk.Variable):
-                kw["variable"] = existing
-            else:
-                # create a new StringVar attached to the widget parent
-                # initialize with any stored register value if you use Registers
-                initial = Registers.get(var, "")
-                sv = tk.StringVar(master=parent, value=initial)
-                # store for future lookups (optional)
-                getattr(capygui, "variables", {}).setdefault(var, sv)
-                kw["variable"] = sv
-
-        optionmenu = ctk.CTkOptionMenu(parent, **kw) if kw else ctk.CTkOptionMenu(parent)
-        optionmenu.pack()
-        capygui.elements[name] = optionmenu
+        widget = ctk.CTkOptionMenu(parent, **kw)
+        capygui.elements[name] = widget
 
     @staticmethod
     def ComboBox(args):
@@ -692,7 +592,6 @@ class capygui:
             name = kw.pop("name", None)
         parent = capygui._get_parent(parent_name)
         combobox = ctk.CTkComboBox(parent, **kw) if kw else ctk.CTkComboBox(parent)
-        combobox.pack()
         capygui.elements[name] = combobox
 
     @staticmethod
@@ -709,7 +608,6 @@ class capygui:
             kw["variable"] = capygui._ensure_variable(kw["variable"], var_type="int")
         parent = capygui._get_parent(parent_name)
         switch = ctk.CTkSwitch(parent, **kw) if kw else ctk.CTkSwitch(parent)
-        switch.pack()
         capygui.elements[name] = switch
 
     @staticmethod
@@ -724,12 +622,7 @@ class capygui:
             geo = kw.pop("geometry", None)
         parent = capygui._get_parent(parent_name)
         sf = ctk.CTkScrollableFrame(parent, **kw) if kw else ctk.CTkScrollableFrame(parent)
-        if geo:
-            try:
-                w, h = geo.split("x")
-                sf.place(x=0, y=0, width=int(w), height=int(h))
-            except Exception:
-                pass
+        # DO NOT place/layout here even if geometry was provided
         capygui.elements[name] = sf
 
     @staticmethod
@@ -747,29 +640,28 @@ class capygui:
             image = ctk.CTkImage(file=path)
             label = ctk.CTkLabel(parent, image=image)
             label._ctk_image = image
-            label.pack()
+            # do NOT pack/place here
             capygui.elements[name] = label
         except Exception:
             # best-effort fallback: create empty label
             label = ctk.CTkLabel(parent, text="")
-            label.pack()
             capygui.elements[name] = label
 
     # --- Generic widget functions (pack/grid/place/configure/destroy) ---
     @staticmethod
     def pack(args):
-        parts = args.split(" ")
-        element_name = parts[0]
-        options = {}
-        if len(parts) > 1:
-            _, kw = capygui._parse_kwargs(parts[1:])
-            options = kw
-        el = capygui.elements.get(element_name)
+        name, *rest = args.split()
+        el = capygui.elements.get(name)
         if el:
-            try:
-                el.pack(**options)
-            except Exception:
-                el.pack()
+            # rest tokens are parsed into kwargs (e.g. side=left, in=parentName etc.)
+            pos, kw = capygui._parse_kwargs(rest)
+            # support "in" or "in_" to refer to parent by name
+            in_name = kw.pop("in", kw.pop("in_", None))
+            if isinstance(in_name, str):
+                in_parent = capygui._get_parent(in_name)
+                if in_parent:
+                    kw["in_"] = in_parent
+            el.pack(**kw)
 
     @staticmethod
     def grid(args):
@@ -781,6 +673,12 @@ class capygui:
             options = kw
         el = capygui.elements.get(element_name)
         if el:
+            # support "in" or "in_" to refer to parent by name
+            in_name = options.pop("in", options.pop("in_", None))
+            if isinstance(in_name, str):
+                in_parent = capygui._get_parent(in_name)
+                if in_parent:
+                    options["in_"] = in_parent
             try:
                 el.grid(row=row, column=column, **options)
             except Exception:
@@ -796,6 +694,11 @@ class capygui:
             options = kw
         el = capygui.elements.get(element_name)
         if el:
+            in_name = options.pop("in", options.pop("in_", None))
+            if isinstance(in_name, str):
+                in_parent = capygui._get_parent(in_name)
+                if in_parent:
+                    options["in_"] = in_parent
             try:
                 el.place(x=x, y=y, **options)
             except Exception:
@@ -1169,8 +1072,10 @@ class CapyCompiler:
             else:
                 raise Exception("Unknown command: " + command)
 
-
-VERSION = "0.1.0"
+    def direct_compile(self, code_string):
+        for line in code_string.split(";"):
+            command, arguements = line.strip().split(" ", 1)[0], line.strip().split(" ", 1)[1]
+            CommandMap[command](arguements)
 
 def main():
     args = sys.argv[1:]
@@ -1192,19 +1097,29 @@ def main():
         CapyCompiler().compile(filename)
         return
 
+    if args[0] == "--drun":
+        if len(args) < 2:
+            print("error: --drun requires code")
+            return
+        code = " ".join(args[1:])
+        CapyCompiler().direct_compile(code)
+        return
+
     print(f"error: unknown command '{args[0]}'")
     print_usage()
 
 
 def print_usage():
     print(
-        """usage:
+        r"""usage:
   capy --ver
   capy --run <file>
+  capy --drun <command> <arguements>
 
 commands:
   --ver        show version
   --run FILE   run a source file
+  --drun "CODE"  run code directly
 """
     )
 
@@ -1214,4 +1129,4 @@ if __name__ == "__main__":
         main()
 
     elif mode == "debug":
-        CapyCompiler().compile(r"C:\Users\vince\source\repos\CapyScript\CapyScript\script.capy")
+        CapyCompiler().compile(r"abcdefghijklmnopqrstuvwxyz")
