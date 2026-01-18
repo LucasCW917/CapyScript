@@ -137,7 +137,7 @@ The GUI system is imperative and stateful by design.
 A single container must use only one geometry manager (pack, grid, or place).
 Mixing layout managers within the same container will result in runtime errors.
 
-External Libraries
+## External Libraries
 
 External libraries are implemented as Python modules.
 
