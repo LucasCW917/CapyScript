@@ -1214,4 +1214,4 @@ if __name__ == "__main__":
         main()
 
     elif mode == "debug":
-        CapyCompiler().compile(r"C:\Users\vince\source\repos\CapyScript\CapyScript\script.capy")
+        CapyCompiler().compile(r"nah")
