@@ -1129,4 +1129,4 @@ if __name__ == "__main__":
         main()
 
     elif mode == "debug":
-        CapyCompiler().compile(r"abcdefghijklmnopqrstuvwxyz")
+        CapyCompiler().compile()
