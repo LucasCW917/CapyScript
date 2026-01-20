@@ -1130,3 +1130,6 @@ if __name__ == "__main__":
 
     elif mode == "debug":
         CapyCompiler().compile()
+        
+elif __name__ != "__main__":
+    main()
